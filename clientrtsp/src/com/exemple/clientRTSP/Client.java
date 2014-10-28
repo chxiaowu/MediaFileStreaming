@@ -10,7 +10,6 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Image;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -23,7 +22,6 @@ import java.io.InterruptedIOException;
 import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.StringTokenizer;
@@ -40,10 +38,11 @@ public class Client{
 //GUI
 //----
 JFrame f = new JFrame("Client");
-JButton setupButton = new JButton("Setup");
-JButton playButton = new JButton("Play");
-JButton pauseButton = new JButton("Pause");
-JButton tearButton = new JButton("Teardown");
+JButton startButton = new JButton("Start");
+JButton pauseButton = new JButton("Play/Pause");
+JButton nextButton = new JButton("Next");
+JButton prevButton = new JButton("Previous");
+JButton closeButton = new JButton("Close");
 JPanel mainPanel = new JPanel();
 JPanel buttonPanel = new JPanel();
 JLabel iconLabel = new JLabel();
@@ -78,7 +77,7 @@ final static String CRLF = "\r\n";
 
 //Video constants:
 //------------------
-static int MJPEG_TYPE = 26; //RTP payload type for MJPEG video
+static int MJPEG_TYPE = 97; //RTP payload type for MJPEG video
 
 //--------------------------
 //Constructor
@@ -97,14 +96,16 @@ public Client() {
 
  //Buttons
  buttonPanel.setLayout(new GridLayout(1,0));
- buttonPanel.add(setupButton);
- buttonPanel.add(playButton);
+ buttonPanel.add(startButton);
  buttonPanel.add(pauseButton);
- buttonPanel.add(tearButton);
- setupButton.addActionListener(new setupButtonListener());
- playButton.addActionListener(new playButtonListener());
+ buttonPanel.add(nextButton);
+ buttonPanel.add(prevButton);
+ buttonPanel.add(closeButton);
+ startButton.addActionListener(new setupButtonListener());
+ nextButton.addActionListener(new playButtonListener());
  pauseButton.addActionListener(new pauseButtonListener());
- tearButton.addActionListener(new tearButtonListener());
+ prevButton.addActionListener(new prevButtonListener());
+ closeButton.addActionListener(new tearButtonListener());
 
  //Image display label
  iconLabel.setIcon(null);
@@ -113,11 +114,11 @@ public Client() {
  mainPanel.setLayout(null);
  mainPanel.add(iconLabel);
  mainPanel.add(buttonPanel);
- iconLabel.setBounds(0,0,380,280);
- buttonPanel.setBounds(0,280,380,50);
+ iconLabel.setBounds(0,0,720,430);
+ buttonPanel.setBounds(0,430,720,50);
 
  f.getContentPane().add(mainPanel, BorderLayout.CENTER);
- f.setSize(new Dimension(390,370));
+ f.setSize(new Dimension(740,520));
  f.setVisible(true);
 
  //init timer
@@ -127,8 +128,10 @@ public Client() {
  timer.setCoalesce(true);
 
  //allocate enough memory for the buffer used to receive data from the server
- buf = new byte[15000];    
+ buf = new byte[15000000];    
 }
+
+public static String[] str;
 
 //------------------------------------
 //main
@@ -140,19 +143,20 @@ public static void main(String argv[]) throws Exception
  
  //get server RTSP port and IP address from the command line
  //------------------
- int RTSP_server_port = 8554; //Integer.parseInt(argv[1]);
- String ServerHost ="127.0.0.1"; //argv[0];
- InetAddress ServerIPAddr = InetAddress.getByName(ServerHost);
+ int RTSP_server_port = 8554; //Integer.parseInt(argv[1]); //
+ String ServerHost = "localhost"; //argv[0]; //
+// InetAddress ServerIPAddr = InetAddress.getByName(ServerHost);
 
  //get video filename to request:
- VideoFileName = "media/movie.mjpeg"  ; //argv[2];
+ VideoFileName = "media/images_1.jpg"  ; //argv[2]+"images_1.jpg"; //
+ str = VideoFileName.split("_");
 
  //Establish a TCP connection with the server to exchange RTSP messages
  //------------------
 // theClient.RTSPsocket = new Socket(ServerIPAddr, RTSP_server_port);
  
  
- theClient.RTSPsocket = new Socket("127.0.0.1", 8554);
+ theClient.RTSPsocket = new Socket(ServerHost, RTSP_server_port);
 
  //Set input and output stream filters:
  RTSPBufferedReader = new BufferedReader(new InputStreamReader(theClient.RTSPsocket.getInputStream()) );
@@ -200,11 +204,12 @@ class setupButtonListener implements ActionListener{
 	      System.out.println("Socket exception: "+se);
 	      System.exit(0);
 	    }
- 
+	}
 	  //init RTSP sequence number
-	  RTSPSeqNb = 1;
+	  RTSPSeqNb = 0;
 	 
 	  //Send SETUP message to the server
+	  VideoFileName = Client.str[0]+"_"+"1"+".jpg"  ; 
 	  send_RTSP_request("SETUP");
 
 	  //Wait for the response 
@@ -216,8 +221,12 @@ class setupButtonListener implements ActionListener{
 		  state = READY;
 	      System.out.println("New RTSP state: READY");
 	      //System.out.println("New RTSP state: ....");
+	      System.out.println(++RTSPSeqNb);
+	      send_RTSP_request("PLAY");
+
+	      timer.start();
 	    }
-	}//else if state != INIT then do nothing
+	//else if state != INIT then do nothing
  }
 }
 
@@ -228,88 +237,98 @@ class playButtonListener implements ActionListener {
 
 	 System.out.println("Play Button pressed !");
 
-     if (state == READY)
+     if (RTSPSeqNb<=11)
 	{
-
- 
-
-   //increase RTSP sequence number
-
+//    	 RTSPSeqNb++;
+	   	//increase RTSP sequence number
+		//send PLAY message to the server
 	
-
-	  RTSPSeqNb++;
-
-//send PLAY message to the server
-
-	
-
-	  send_RTSP_request("PLAY");
-
-
-
-//   wait for the response
-
-	
-
-	  if (parse_server_response() != 200)
+		VideoFileName= Client.str[0]+ "_"+RTSPSeqNb+".jpg";
+	   	System.out.println(RTSPSeqNb);
+	  	
+	  	send_RTSP_request("PLAY");
+		
+		//   wait for the response
+	  	if (parse_server_response() != 200)
 		  System.out.println("Invalid Server Response");
-	  else
+		else
 	    {
+			//   change RTSP state and print out new state
+	      	state=PLAYING;
+	      	System.out.println("New RTSP state: PLAYING");
 
-
-
-//   change RTSP state and print out new state
-
-	
-
-	      state=PLAYING;
-	      System.out.println("New RTSP state: PLAYING");
-
-
-
-//   start the timer
-
-	
-
-	      timer.start();
+			//   start the timer
+	    	timer.start();
 	    }
-	}//else if state != READY then do nothing
+	}
+	//else if state != READY then do nothing
    }
 }
 
 
 //Handler for Pause button
 //-----------------------
-class pauseButtonListener implements ActionListener {
+class prevButtonListener implements ActionListener {
  public void actionPerformed(ActionEvent e){
 
-   //System.out.println("Pause Button pressed !");   
+   System.out.println("Prev Button pressed !");   
 
-   if (state == PLAYING) 
+   if (RTSPSeqNb>2) 
 	{
-	  //increase RTSP sequence number
+	   	//increase RTSP sequence number
+		RTSPSeqNb--;
+		RTSPSeqNb--;
 
-	  //........
+		//send PLAY message to the server
+		
+		System.out.println(RTSPSeqNb);
+		VideoFileName= Client.str[0]+ "_"+RTSPSeqNb+".jpg";
+		send_RTSP_request("PLAY");
 
-	  //Send PAUSE message to the server
-	  send_RTSP_request("PAUSE");
-	
-	  //Wait for the response 
-	 if (parse_server_response() != 200)
-		  System.out.println("Invalid Server Response");
-	  else 
-	    {
-	      //change RTSP state and print out new state
-	      //........
-	      //System.out.println("New RTSP state: ...");
-	      
-	      //stop the timer
-	      timer.stop();
-	    }
+	//   wait for the response
+
+		if (parse_server_response() != 200)
+			System.out.println("Invalid Server Response");
+		else
+		{
+
+			//   change RTSP state and print out new state
+		    state=PLAYING;
+			System.out.println("New RTSP state: PLAYING");
+
+			//   start the timer
+			timer.start();
+		}
 	}
    //else if state != PLAYING then do nothing
  }
 }
+class pauseButtonListener implements ActionListener {
+	 public void actionPerformed(ActionEvent e){
+
+
+		  //Send PAUSE message to the server
+		  send_RTSP_request("PAUSE");
+		
+		  //Wait for the response 
+		 if (parse_server_response() != 200)
+			  System.out.println("Invalid Server Response");
+		  else 
+		    {
+		      //change RTSP state and print out new state
+		      //........
+		      //System.out.println("New RTSP state: ...");
+		      
+		      //stop the timer
+			  state=READY;
+			  if(timer.isRunning())
+				  timer.stop();
+			  timer.start();
+		    }
+		}
+	   //else if state != PLAYING then do nothing
+	 
+	}
 
 //Handler for Teardown button
 //-----------------------
@@ -363,7 +382,7 @@ class timerListener implements ActionListener {
 
 	//print important header fields of the RTP packet received: 
 	System.out.println("Got RTP packet with SeqNum # "+rtp_packet.getsequencenumber()+" TimeStamp "+rtp_packet.gettimestamp()+" ms, of type "+rtp_packet.getpayloadtype());
-	
+	RTSPSeqNb++;
 	//print header bitstream:
 	rtp_packet.printheader();
 
@@ -373,12 +392,23 @@ class timerListener implements ActionListener {
 	rtp_packet.getpayload(payload);
 
 	//get an Image object from the payload bitstream
-	Toolkit toolkit = Toolkit.getDefaultToolkit();
-	Image image = toolkit.createImage(payload, 0, payload_length);
+	// Toolkit toolkit = Toolkit.getDefaultToolkit();
+	// Image image = toolkit.createImage(payload, 0, payload_length);
+	ImageIcon pic = null;
+	if (payload != null) {
+		pic = new ImageIcon(payload);
+		System.out.println("GOT Payload with length " + payload_length);
+	} 
+//	else {
+//		pic = new ImageIcon(getClass().getResource(""));
+//	}
+	Image scaled = pic.getImage().getScaledInstance(iconLabel.getWidth(), iconLabel.getHeight(), Image.SCALE_DEFAULT);
 	
 	//display the image as an ImageIcon object
-	icon = new ImageIcon(image);
+	icon = new ImageIcon(scaled);
 	iconLabel.setIcon(icon);
+
+	
    }
    catch (InterruptedIOException iioe){
 	//System.out.println("Nothing to read");
