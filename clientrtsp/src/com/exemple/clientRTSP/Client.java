@@ -30,6 +30,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
@@ -138,13 +139,18 @@ public static String[] str;
 //------------------------------------
 public static void main(String argv[]) throws Exception
 {
+	 String ServerHost = 
+	           JOptionPane.showInputDialog("please enter server host");
+	 int RTSP_server_port = Integer.parseInt(
+	           JOptionPane.showInputDialog("please enter server port"));
+	 
  //Create a Client object
  Client theClient = new Client();
  
  //get server RTSP port and IP address from the command line
  //------------------
- int RTSP_server_port = 8554; //Integer.parseInt(argv[1]); //
- String ServerHost = "localhost"; //argv[0]; //
+ //int RTSP_server_port = 8554; //Integer.parseInt(argv[1]); //
+ //String ServerHost = "localhost"; //argv[0]; //
 // InetAddress ServerIPAddr = InetAddress.getByName(ServerHost);
 
  //get video filename to request:
